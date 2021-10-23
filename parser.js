@@ -2,41 +2,45 @@ import fs from "fs";
 
 async function ChunkExtractor(tpmFile, boundary) {
   const file = fs.readFileSync(tpmFile);
-
-  const form = Buffer.from(file)
-    .slice(boundary.length + 4, -(boundary.length + 6))
-    .toString()
-    .split("--" + boundary + "\r\n")
+  const form = file
+    .slice(boundary.length + 4, -(boundary.length + 8))
+    .toString("hex")
+    .split(Buffer.from("--" + boundary + "\r\n").toString("hex"))
     .map((input) => {
-      const [info, content] = input.split("\r\n\r\n").map((value, i) => {
-        if (i === 1) {
-          return value.slice(0, -2);
-        }
-        return value;
-      });
-      if (info.includes("filename")) {
-        const fileinfo = {};
-        info.split("\r\n").map((value, i) => {
-          if (i === 0) {
-            value
-              .slice(32)
-              .split("; ")
-              .map((value, i) => {
-                if (i === 0) {
-                  fileinfo.inputName = value.split("=")[1].slice(1, -1);
-                  return;
-                }
-                fileinfo.filename = value.split("=")[1].slice(1, -1);
-              });
-            return;
-          }
-          fileinfo.mimetype = value.slice(14);
-        });
-        return { ...fileinfo, buffer: Buffer.from(content) };
-      }
-      return {
-        inputName: info.slice(38, -1),
+      let info,
         content,
+        fileInfo = {};
+
+      if (Buffer.from(input, "hex").toString().includes("filename")) {
+        [info, content] = input.split("0d0a0d0a");
+        Buffer.from(info, "hex")
+          .toString()
+          .split("\r\n")
+          .map((value, i) => {
+            if (i === 0) {
+              value
+                .slice(32)
+                .split("; ")
+                .map((value, i) => {
+                  if (i === 0) {
+                    fileInfo.input = value.split("=")[1].slice(1, -1);
+                    return;
+                  }
+                  fileInfo.filename = value.split("=")[1].slice(1, -1);
+                });
+              return;
+            }
+            fileInfo.mimetype = value.slice(14);
+          });
+        return {
+          ...fileInfo,
+          buffer: Buffer.from(content, "hex"),
+        };
+      }
+      [info, content] = input.slice(0, -4).split("0d0a0d0a");
+      return {
+        input: Buffer.from(info, "hex").toString().slice(38, -1),
+        value: Buffer.from(content, "hex").toString(),
       };
     });
 
