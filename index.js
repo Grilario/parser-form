@@ -2,6 +2,8 @@ import http from "http";
 import fs from "fs";
 import { FormData } from "./parser.js";
 
+const port = process.env.PORT || 3333;
+
 try {
   fs.mkdirSync("./tmp");
   fs.mkdirSync("./files");
@@ -42,6 +44,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen("3333", "0.0.0.0", () => {
+server.listen(port, () => {
   console.log("Running...");
 });
